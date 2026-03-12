@@ -1,50 +1,81 @@
-# Welcome to your Expo app 👋
+# 🌙 Moonlight Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Moonlight is a minimalist, piano-inspired music player built for **Android** and **iOS** using **React Native and Expo**.
 
-## Get started
+The goal of Moonlight is to create a calm and aesthetic music experience inspired by night-time listening and piano music.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+# ✨ Features
 
-2. Start the app
+* 🎧 Music playback
+* 🎼 Playlist creation
+* ❤️ Favorite songs
+* 🔎 Search music
+* 🌙 Dark aesthetic interface
 
-   ```bash
-   npx expo start
-   ```
+Planned features:
 
-In the output, you'll find options to open the app in a
+* 🎹 Piano visualizer
+* 📥 Offline downloads
+* 🎵 Lyrics display
+* ☁️ Cloud sync
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+# 🛠 Tech Stack
 
-## Get a fresh project
+Mobile App
 
-When you're ready, run:
+* React Native
+* Expo
+* JavaScript (JSX)
 
-```bash
-npm run reset-project
+---
+
+# 📂 Project Structure
+
+```
+moonlight
+├── app
+├── assets
+├── components
+├── constants
+└── package.json
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+# 🚀 Getting Started
 
-To learn more about developing your project with Expo, look at the following resources:
+Clone the repository:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+git clone https://github.com/Sajal-26/moonlight.git
+cd moonlight
+```
 
-## Join the community
+Install dependencies:
 
-Join our community of developers creating universal apps.
+```
+npm install
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Start the development server:
+
+```
+npx expo start
+```
+
+You can run the app on:
+
+* Android Emulator
+* iOS Simulator
+* Expo Go
+* Web browser
+
+---
+
+# 📜 Status
+
+🚧 This project is currently under active development.
