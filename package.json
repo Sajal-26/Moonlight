@@ -16,6 +16,8 @@
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "@vercel/node": "^5.6.15",
+    "axios": "^1.13.6",
     "base-64": "^1.0.0",
     "expo": "~54.0.33",
     "expo-audio": "~1.1.1",
@@ -43,6 +45,7 @@
     "react-native-track-player": "^4.1.2",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
+    "react-native-youtube-iframe": "^2.4.1",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
@@ -52,5 +55,17 @@
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "description": "Moonlight is a minimalist, piano-inspired music player built for **Android** and **iOS** using **React Native and Expo**.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sajal-26/Moonlight.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Sajal-26/Moonlight/issues"
+  },
+  "homepage": "https://github.com/Sajal-26/Moonlight#readme"
 }

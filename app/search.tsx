@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useMemo, useRef } from "react";
 import { ActivityIndicator, FlatList, ListRenderItem, Platform, StyleSheet, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context"; // Fixed Safe Area
+import { SafeAreaView } from "react-native-safe-area-context";
 import AlbumItem from "../components/AlbumItem";
 import ArtistItem from "../components/ArtistItem";
 import SearchFilters from "../components/SearchFilters";
@@ -32,7 +32,7 @@ export default function Search() {
         if (searchTimeout.current) clearTimeout(searchTimeout.current)
         searchTimeout.current = setTimeout(() => {
             searchMusic(text)
-        }, 500)
+        }, 2000)
     }
 
     const listData = useMemo<ListItem[]>(() => {

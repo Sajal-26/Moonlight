@@ -13,27 +13,47 @@ function formatDuration(seconds?: number) {
 }
 
 function getCoverUrl(cover?: string | null) {
-    if (!cover) return "https://resources.tidal.com/images/default/320x320.jpg"
+    if (!cover) {
+        return "https://resources.tidal.com/images/default/320x320.jpg"
+    }
+
+    if (cover.startsWith("http")) return cover
+
     const path = cover.replace(/-/g, "/")
     return `https://resources.tidal.com/images/${path}/320x320.jpg`
 }
 
 export default function SongItem({ song }: Props) {
-    // 1. Hook into the playTrack action instead of setCurrentTrack
+
     const playTrack = useMusicStore((state) => state.playTrack)
     const currentTrack = useMusicStore((state) => state.currentTrack)
 
-    // Check if this specific song is the one currently playing
-    const isPlayingThis = currentTrack?.id === song.id
+    const isPlayingThis =
+        currentTrack?.id === song.id &&
+        currentTrack?.source === song.source
+
+    function resolveImage(song: Track) {
+        if (song.thumbnail && song.thumbnail.startsWith("http")) {
+            return song.thumbnail
+        }
+
+        if (song.album?.cover) {
+            return getCoverUrl(song.album.cover)
+        }
+
+        return "https://resources.tidal.com/images/default/320x320.jpg"
+    }
+
+    const imageUri = resolveImage(song)
 
     return (
         <TouchableOpacity
             style={[styles.container, isPlayingThis && styles.activeContainer]}
             activeOpacity={0.7}
-            onPress={() => playTrack(song)} // 2. Trigger the full playback logic
+            onPress={() => playTrack(song)}
         >
             <Image
-                source={{ uri: getCoverUrl(song?.album?.cover) }}
+                source={{ uri: imageUri }}
                 style={styles.cover}
             />
 
@@ -46,18 +66,21 @@ export default function SongItem({ song }: Props) {
                 </Text>
 
                 <View style={styles.artistRow}>
-                    {song?.audioQuality === "LOSSLESS" && (
-                        <View style={styles.losslessBadge}>
-                            <Text style={styles.losslessText}>LOSSLESS</Text>
-                        </View>
-                    )}
+
+                    <View style={styles.losslessBadge}>
+                        <Text style={styles.losslessText}>
+                            {song.source === "youtube"
+                                ? "HIGH"
+                                : song?.audioQuality ?? "HIGH"}
+                        </Text>
+                    </View>
+
                     <Text numberOfLines={1} style={styles.artist}>
                         {song?.artists?.[0]?.name ?? "Unknown Artist"}
                     </Text>
                 </View>
             </View>
 
-            {/* If playing, show a small speaker icon instead of duration (optional but looks cool) */}
             <Text style={styles.duration}>
                 {formatDuration(song?.duration)}
             </Text>
@@ -72,51 +95,61 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 16,
     },
+
     activeContainer: {
-        backgroundColor: 'rgba(124, 108, 242, 0.05)', // Subtle highlight for playing song
+        backgroundColor: "rgba(124,108,242,0.05)",
     },
+
     cover: {
         width: 48,
         height: 48,
         borderRadius: 6,
         marginRight: 14,
     },
+
     info: {
         flex: 1,
     },
+
     title: {
         color: "white",
         fontSize: 16,
         fontWeight: "500",
     },
+
     activeTitle: {
-        color: '#7C6CF2', // Highlight title in your brand purple
+        color: "#7C6CF2",
     },
+
     artistRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         marginTop: 3,
     },
+
     artist: {
         color: "#9CA3AF",
         fontSize: 13,
     },
+
     duration: {
         color: "#9CA3AF",
         fontSize: 13,
     },
+
     losslessBadge: {
-        backgroundColor: 'rgba(225, 176, 126, 0.1)', // Matches the player's gold tone
+        backgroundColor: "rgba(225,176,126,0.1)",
         paddingHorizontal: 4,
         paddingVertical: 1,
         borderRadius: 2,
         marginRight: 6,
         borderWidth: 0.5,
-        borderColor: 'rgba(225, 176, 126, 0.3)',
+        borderColor: "rgba(225,176,126,0.3)",
     },
+
     losslessText: {
-        color: '#E1B07E',
+        color: "#E1B07E",
         fontSize: 8,
-        fontWeight: '900',
+        fontWeight: "900",
     },
 })

@@ -1,0 +1,16 @@
+{
+    "routes": [
+        {
+            "src": "/api/search",
+            "dest": "/api/search.ts"
+        },
+        {
+            "src": "/api/next",
+            "dest": "/api/next.ts"
+        },
+        {
+            "src": "/api/lyrics",
+            "dest": "/api/lyrics.ts"
+        }
+    ]
+}
