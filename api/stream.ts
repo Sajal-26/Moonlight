@@ -1,43 +1,45 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { Innertube } from 'youtubei.js';
+import YTDlpWrapModule from "yt-dlp-wrap";
+
+// Handling the ES Module import for yt-dlp-wrap
+const YTDlpWrap = (YTDlpWrapModule as any).default || YTDlpWrapModule;
+const ytDlp = new YTDlpWrap();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // 1. SET HEADERS IMMEDIATELY (Before any logic)
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Content-Type", "application/json");
 
     if (req.method === "OPTIONS") return res.status(200).end();
 
     const { id } = req.query;
-
     if (!id || typeof id !== "string") {
-        return res.status(400).json({ error: "Missing YouTube Video ID" });
+        return res.status(400).json({ error: "Video ID is required" });
     }
 
     try {
-        const yt = await Innertube.create();
-        const info = await yt.getInfo(id);
+        const url = `https://www.youtube.com/watch?v=${id}`;
 
-        const format = info.streaming_data?.adaptive_formats
-            .filter(f => f.has_audio && !f.has_video)
-            .sort((a, b) => (b.average_bitrate || 0) - (a.average_bitrate || 0))[0];
+        // Executing yt-dlp with the exact same flags that worked in your main()
+        const result = await ytDlp.execPromise([
+            url,
+            "-f", "bestaudio",
+            "-j", // Output metadata as JSON
+        ]);
 
-        if (!format || !format.url) {
-            return res.status(404).json({ error: "No audio stream found" });
-        }
+        const video = JSON.parse(result);
 
         return res.status(200).json({
-            url: format.url,
-            title: info.basic_info.title,
-            duration: info.basic_info.duration,
+            url: video.url,
+            title: video.title,
+            duration: video.duration,
+            source: "yt-dlp"
         });
 
     } catch (error: any) {
-        console.error("Crash Log:", error.message);
-        // Explicitly return CORS headers even on 500
+        console.error("yt-dlp Error:", error);
         return res.status(500).json({
-            error: "Extraction failed",
+            error: "yt-dlp failed",
             message: error.message
         });
     }

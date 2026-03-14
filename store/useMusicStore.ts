@@ -240,21 +240,14 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
         try {
 
             const requests = [];
-
-            // requests.push(
-            //     fetch(`https://streamex.sh/api/music/search?${param}=${encodeURIComponent(query)}&limit=${LIMIT}&offset=0`)
-            // );
             requests.push(fetch(`https://streamex.sh/api/music/search?s=${encodeURIComponent(query)}&limit=${LIMIT}`));
             requests.push(fetch(`https://streamex.sh/api/music/search?al=${encodeURIComponent(query)}&limit=${LIMIT}`));
             requests.push(fetch(`https://streamex.sh/api/music/search?a=${encodeURIComponent(query)}&limit=${LIMIT}`));
 
-            // if (currentFilter === "all") {
             requests.push(fetch(YTM_SEARCH_URL, { method: "POST", headers: YTM_HEADERS, body: JSON.stringify({ query, filter: "songs" }) }));
             requests.push(fetch(YTM_SEARCH_URL, { method: "POST", headers: YTM_HEADERS, body: JSON.stringify({ query, filter: "albums" }) }));
             requests.push(fetch(YTM_SEARCH_URL, { method: "POST", headers: YTM_HEADERS, body: JSON.stringify({ query, filter: "artists" }) }));
-            // } else {
-            //     requests.push(fetch(YTM_SEARCH_URL, { method: "POST", headers: YTM_HEADERS, body: JSON.stringify({ query, filter: currentFilter }) }));
-            // }
+
 
             const responses = await Promise.allSettled(requests);
 
@@ -912,6 +905,13 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
                 try {
                     // Point this to your new Vercel endpoint
                     const response = await fetch(`https://moonlight-lac.vercel.app/api/stream?id=${track.id}`);
+                    const contentType = response.headers.get("content-type");
+                    if (!response.ok || !contentType?.includes("application/json")) {
+                        const text = await response.text();
+                        console.error("Backend Error Text:", text);
+                        throw new Error(`Server status ${response.status}: ${text}`);
+                    }
+
                     const data = await response.json();
 
                     if (data.error) throw new Error(data.error);
