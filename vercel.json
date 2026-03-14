@@ -11,6 +11,13 @@
         {
             "src": "/api/lyrics",
             "dest": "/api/lyrics.ts"
+        },
+        {
+            "src": "/api/stream",
+            "dest": "/api/stream.ts",
+            "headers": {
+                "cache-control": "s-maxage=3600, stale-while-revalidate"
+            }
         }
     ]
 }
