@@ -1,20 +1,12 @@
 {
-    "routes": [
+    "rewrites": [
         {
-            "src": "/api/stream",
-            "dest": "/api/stream.py"
+            "source": "/api/stream",
+            "destination": "/api/stream.py"
         },
         {
-            "src": "/api/search",
-            "dest": "/api/search.ts"
-        },
-        {
-            "src": "/api/next",
-            "dest": "/api/next.ts"
-        },
-        {
-            "src": "/api/lyrics",
-            "dest": "/api/lyrics.ts"
+            "source": "/api/:path*",
+            "destination": "/api/:path*"
         }
     ]
 }
