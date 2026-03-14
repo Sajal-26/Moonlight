@@ -231,7 +231,9 @@ export default function Player() {
                                 </View>
                                 <FlatList
                                     data={upNextTracks} // USING REAL DATA
-                                    keyExtractor={item => item.id.toString()}
+                                    keyExtractor={(item, index) =>
+                                        `${item.source}-${item.id}-${index}`
+                                    }
                                     contentContainerStyle={styles.upNextList}
                                     showsVerticalScrollIndicator={false}
                                     ListEmptyComponent={
@@ -240,7 +242,7 @@ export default function Player() {
                                         </View>
                                     }
                                     renderItem={({ item }) => (
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={styles.upNextItem}
                                             onPress={() => {
                                                 playTrack(item); // Play the suggested track

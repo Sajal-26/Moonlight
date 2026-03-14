@@ -6,14 +6,24 @@ type Props = {
 }
 
 function getCoverUrl(cover?: string | null) {
-    if (!cover) return "https://resources.tidal.com/images/default/320x320.jpg"
+    // fallback image
+    if (!cover) {
+        return "https://resources.tidal.com/images/default/320x320.jpg"
+    }
+
+    // if already a full URL (YouTube etc.)
+    if (cover.startsWith("http")) {
+        return cover
+    }
+
+    // assume Tidal cover id
     const path = cover.replace(/-/g, "/")
     return `https://resources.tidal.com/images/${path}/320x320.jpg`
 }
 
 export default function AlbumItem({ album }: Props) {
     return (
-        <TouchableOpacity style={styles.container}>
+        <TouchableOpacity style={styles.container} activeOpacity={0.7}>
             <Image
                 source={{ uri: getCoverUrl(album?.cover) }}
                 style={styles.cover}
@@ -39,20 +49,25 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 16,
     },
+
     cover: {
         width: 48,
         height: 48,
-        borderRadius: 6, // Square with rounded corners
+        borderRadius: 6,
         marginRight: 14,
+        backgroundColor: "#1A1A22", // prevents flicker while loading
     },
+
     info: {
         flex: 1,
     },
+
     title: {
         color: "white",
         fontSize: 16,
         fontWeight: "500",
     },
+
     subtitle: {
         color: "#9CA3AF",
         fontSize: 13,
