@@ -24,6 +24,11 @@ class handler(BaseHTTPRequestHandler):
             'format': 'bestaudio/best',
             'quiet': True,
             'no_warnings': True,
+            'nocheckcertificate': True,
+            'ignoreerrors': False,
+            'logtostderr': False,
+            'no_color': True,
+            'cachedir': False,
         }
 
         try:
