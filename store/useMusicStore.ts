@@ -903,43 +903,55 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
                 console.log(" [4] YouTube source detected. Fetching stream...");
 
                 try {
-                    // Point this to your new Vercel endpoint
+                    // 1. Fetch from your Python/yt-dlp Vercel endpoint
                     const response = await fetch(`https://moonlight-lac.vercel.app/api/stream?id=${track.id}`);
+
                     const contentType = response.headers.get("content-type");
                     if (!response.ok || !contentType?.includes("application/json")) {
                         const text = await response.text();
-                        console.error("Backend Error Text:", text);
                         throw new Error(`Server status ${response.status}: ${text}`);
                     }
 
                     const data = await response.json();
 
-                    if (data.error) throw new Error(data.error);
+                    if (!data.url) {
+                        throw new Error("No stream URL returned from backend");
+                    }
 
-                    console.log(" [5] Stream URL obtained. Quality:", data.quality);
+                    console.log(" [5] Stream URL obtained from yt-dlp.");
 
+                    // 2. Create the Audio instance
+                    // Note: data.duration from yt-dlp is usually in seconds
                     const { sound } = await Audio.Sound.createAsync(
                         { uri: data.url },
-                        { shouldPlay: true },
+                        { shouldPlay: true, progressUpdateIntervalMillis: 500 }, // Smoother slider updates
                         (status) => {
                             if (status.isLoaded) {
                                 set({
                                     currentTime: status.positionMillis / 1000,
-                                    // Update totalDuration if it wasn't available before
+                                    // Use status duration if available, else fallback to backend data
                                     totalDuration: status.durationMillis
                                         ? status.durationMillis / 1000
-                                        : data.duration || 1,
+                                        : (data.duration || track.duration || 1),
                                     isPlaying: status.isPlaying,
                                 });
+
+                                // Handle track finish
+                                if (status.didJustFinish) {
+                                    set({ isPlaying: false, currentTime: 0 });
+                                }
                             }
                         }
                     );
 
+                    // 3. Store the sound instance globally
                     set({ sound, isPlaying: true });
 
                 } catch (err) {
                     console.error(" [YouTube Error]:", err);
-                    set({ isPlaying: false });
+                    // Important: Let the user know it failed
+                    set({ isPlaying: false, currentTrack: null });
+                    alert("Failed to load YouTube stream. Please try again.");
                 }
             }
 
