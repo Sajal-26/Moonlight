@@ -156,16 +156,18 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 
     searchMusic: async (query: string) => {
         if (!query) {
-            set({
-                query: "",
-                tracks: [],
-                artists: [],
-                albums: [],
-                trackOffset: 0,
-                hasMoreTracks: true,
-            });
+            set({ query: "", tracks: [], artists: [], albums: [], trackOffset: 0, hasMoreTracks: true });
             return;
         }
+
+        // Helper to convert "3:45" to seconds
+        const parseTime = (timeStr) => {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(':').map(Number);
+            if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            if (parts.length === 2) return parts[0] * 60 + parts[1];
+            return parts[0] || 0;
+        };
 
         const filter = get().filter;
         const param = getApiParam(filter);
@@ -174,35 +176,24 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 
         try {
             const [streamRes, ytRes] = await Promise.allSettled([
-                fetch(
-                    `https://streamex.sh/api/music/search?${param}=${encodeURIComponent(
-                        query
-                    )}&limit=${LIMIT}&offset=0`
-                ),
-
-                // replaced YouTube API search with YouTube Music search
+                fetch(`https://streamex.sh/api/music/search?${param}=${encodeURIComponent(query)}&limit=${LIMIT}&offset=0`),
                 fetch(YTM_SEARCH_URL, {
                     method: "POST",
                     headers: YTM_HEADERS,
-                    body: JSON.stringify({
-                        query
-                    })
+                    body: JSON.stringify({ query, filter }) // Passing filter to backend
                 })
             ]);
 
             if (get().query !== query) return;
 
-            let finalTracks: Track[] = [];
+            let finalTracks = [];
 
+            // --- STREAMEX PARSING ---
             if (streamRes.status === "fulfilled") {
                 const json = await streamRes.value.json();
+                const sTracksRaw = json?.data?.tracks?.items ?? json?.data?.items ?? (Array.isArray(json?.data) ? json.data : []);
 
-                const sTracksRaw =
-                    json?.data?.tracks?.items ??
-                    json?.data?.items ??
-                    (Array.isArray(json?.data) ? json.data : []);
-
-                const sTracks: Track[] = sTracksRaw.map((t: any) => ({
+                const sTracks = sTracksRaw.map((t) => ({
                     id: t.id,
                     title: t.title || t.Title || "Unknown",
                     duration: t.duration || 0,
@@ -212,133 +203,101 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
                     source: "streamex",
                     thumbnail: t.album?.cover || null,
                 }));
-
                 finalTracks = [...sTracks];
             }
 
-            // ---------- YOUTUBE MUSIC RESULTS ----------
-
+            // --- YOUTUBE MUSIC PARSING ---
             if (ytRes.status === "fulfilled") {
-
                 const data = await ytRes.value.json();
-
-                const sections =
-                    data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
-                        ?.content?.sectionListRenderer?.contents || [];
-
-                const ytTracks: Track[] = [];
+                const sections = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+                const ytTracks = [];
 
                 for (const section of sections) {
-
+                    // Handle Hero/Top result card
                     if (section.musicCardShelfRenderer) {
                         const card = section.musicCardShelfRenderer;
-
                         try {
                             const title = card.title.runs[0].text;
                             const videoId = card.title.runs[0].navigationEndpoint.watchEndpoint.videoId;
-                            const artist = card.subtitle.runs[2].text;
+                            const artist = card.subtitle.runs[2]?.text || "Unknown";
+                            const durationStr = card.subtitle.runs[card.subtitle.runs.length - 1]?.text;
 
                             ytTracks.push({
                                 id: videoId,
                                 title,
-                                duration: 0,
+                                duration: parseTime(durationStr),
                                 audioQuality: "Standard",
                                 source: "youtube",
                                 thumbnail: card.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[1]?.url,
                                 artists: [{ id: artist, name: artist }],
-                                album: {
-                                    id: "yt-album",
-                                    title: "YouTube Music",
-                                    cover: card.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[1]?.url
-                                }
+                                album: { id: "yt-album", title: "YouTube Music", cover: null }
                             });
                         } catch { }
                     }
 
+                    // Handle List results
                     if (section.musicShelfRenderer) {
-
                         for (const item of section.musicShelfRenderer.contents || []) {
-
                             const r = item.musicResponsiveListItemRenderer;
-                            if (!r) continue;
+                            if (!r || !r.playlistItemData) continue;
 
                             try {
                                 const title = r.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text;
-                                const artist = r.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs[2].text;
                                 const videoId = r.playlistItemData.videoId;
+
+                                // Extract artist and duration from the second column
+                                const subRuns = r.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs;
+                                const artist = subRuns[0]?.text || "Unknown";
+                                const durationStr = subRuns[subRuns.length - 1]?.text;
 
                                 ytTracks.push({
                                     id: videoId,
                                     title,
-                                    duration: 0,
+                                    duration: parseTime(durationStr),
                                     audioQuality: "Standard",
                                     source: "youtube",
                                     thumbnail: r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url,
                                     artists: [{ id: artist, name: artist }],
-                                    album: {
-                                        id: "yt-album",
-                                        title: "YouTube Music",
-                                        cover: r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url
-                                    }
+                                    album: { id: "yt-album", title: "YouTube Music", cover: null }
                                 });
-
                             } catch { }
                         }
                     }
                 }
-
                 finalTracks = [...finalTracks, ...ytTracks];
             }
 
+            // --- SCORING & DEDUPLICATION ---
             const q = query.toLowerCase().trim();
-
-            const calculateScore = (track: Track) => {
+            const calculateScore = (track) => {
                 const title = track.title.toLowerCase();
                 const artist = track.artists?.[0]?.name.toLowerCase() || "";
-
                 let score = 0;
-
                 if (title === q) score += 10000;
                 else if (title.startsWith(q)) score += 8000;
                 else if (title.includes(q)) score += 5000;
-
                 if (artist === q) score += 2000;
-                else if (artist.includes(q)) score += 1000;
-
                 if (track.source === "streamex") score += 500;
-
-                if (track.source === "streamex" && track.audioQuality === "LOSSLESS")
-                    score += 500;
-
                 return score;
             };
 
             finalTracks.sort((a, b) => calculateScore(b) - calculateScore(a));
 
-            const seen = new Set<string>();
-
-            finalTracks = finalTracks.filter((track) => {
-                const title = normalize(track.title);
-                const artist = normalize(track.artists?.[0]?.name || "");
-                const key = `${title}-${artist}`;
-
+            const seen = new Set();
+            const filteredTracks = finalTracks.filter((track) => {
+                const key = `${normalize(track.title)}-${normalize(track.artists?.[0]?.name || "")}`;
                 if (track.source === "streamex") {
                     seen.add(key);
                     return true;
                 }
-
-                if (track.source === "youtube" && seen.has(key)) {
-                    return false;
-                }
-
-                return true;
+                return !seen.has(key);
             });
 
             set({
-                tracks: finalTracks,
+                tracks: filteredTracks,
                 loading: false,
                 trackOffset: LIMIT,
-                hasMoreTracks: finalTracks.length >= LIMIT,
+                hasMoreTracks: filteredTracks.length >= LIMIT,
             });
         } catch (error) {
             console.error("Search Logic Error:", error);
@@ -413,7 +372,7 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
             // --- STEP 3: PARALLEL STREAME-X UPGRADE (0.5 ACCURACY) ---
             console.log(" [Next] 3. Upgrading suggestions via Parallel Streamex calls...");
 
-            const upgradePromises = rawSuggestions.map(async (item : any) => {
+            const upgradePromises = rawSuggestions.map(async (item: any) => {
                 const v = item.playlistPanelVideoRenderer;
                 if (!v) return null;
 
