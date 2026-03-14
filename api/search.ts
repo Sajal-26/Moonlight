@@ -1,16 +1,27 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+
+    // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-    if (req.method === "OPTIONS") return res.status(200).end();
-    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    if (req.method === "OPTIONS") {
+        return res.status(200).end();
+    }
+
+    if (req.method !== "POST") {
+        return res.status(405).json({ error: "Method not allowed" });
+    }
 
     const { query, filter } = req.body;
 
-    // YT Music param tokens for specific categories
+    if (!query || typeof query !== "string") {
+        return res.status(400).json({ error: "Query is required" });
+    }
+
+    // YT Music category tokens
     const filterMap: Record<string, string> = {
         songs: "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D",
         albums: "EgWKAQIYAWoKEAkQChADFAMQBA%3D%3D",
@@ -20,6 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const params = filterMap[filter] || filterMap.songs;
 
     try {
+
         const ytRes = await fetch(
             "https://music.youtube.com/youtubei/v1/search?prettyPrint=false",
             {
@@ -27,8 +39,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 headers: {
                     "Content-Type": "application/json",
                     "X-YouTube-Client-Name": "67",
-                    "X-YouTube-Client-Version": "1.20260311.03.00"
+                    "X-YouTube-Client-Version": "1.20260311.03.00",
+                    "Origin": "https://music.youtube.com",
+                    "User-Agent": "Mozilla/5.0"
                 },
+                credentials: "omit",
                 body: JSON.stringify({
                     query,
                     params,
@@ -43,9 +58,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
 
         const data = await ytRes.json();
+
+        // basic caching
+        res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate");
+
         return res.status(200).json(data);
 
-    } catch (err) {
-        return res.status(500).json({ error: "Search failed" });
+    } catch (error) {
+
+        console.error("Search error:", error);
+
+        return res.status(500).json({
+            error: "Search failed"
+        });
     }
 }

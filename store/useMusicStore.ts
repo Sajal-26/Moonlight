@@ -156,12 +156,19 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 
     searchMusic: async (query: string) => {
         if (!query) {
-            set({ query: "", tracks: [], artists: [], albums: [], trackOffset: 0, hasMoreTracks: true });
+            set({
+                query: "",
+                tracks: [],
+                artists: [],
+                albums: [],
+                trackOffset: 0,
+                hasMoreTracks: true,
+            });
             return;
         }
 
         // Helper to convert "3:45" to seconds
-        const parseTime = (timeStr) => {
+        const parseTime = (timeStr: string | undefined): number => {
             if (!timeStr) return 0;
             const parts = timeStr.split(':').map(Number);
             if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -180,54 +187,56 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
                 fetch(YTM_SEARCH_URL, {
                     method: "POST",
                     headers: YTM_HEADERS,
-                    body: JSON.stringify({ query, filter }) // Passing filter to backend
+                    body: JSON.stringify({ query, filter })
                 })
             ]);
 
             if (get().query !== query) return;
 
-            let finalTracks = [];
+            let finalTracks: Track[] = [];
+            let finalArtists: Artist[] = [];
+            let finalAlbums: Album[] = [];
 
             // --- STREAMEX PARSING ---
             if (streamRes.status === "fulfilled") {
                 const json = await streamRes.value.json();
                 const sTracksRaw = json?.data?.tracks?.items ?? json?.data?.items ?? (Array.isArray(json?.data) ? json.data : []);
 
-                const sTracks = sTracksRaw.map((t) => ({
+                finalTracks = sTracksRaw.map((t: any) => ({
                     id: t.id,
                     title: t.title || t.Title || "Unknown",
                     duration: t.duration || 0,
                     audioQuality: t.audioQuality || "Standard",
                     artists: t.artists || [],
                     album: t.album || { id: 0, title: "Unknown Album", cover: null },
-                    source: "streamex",
+                    source: "streamex" as TrackSource,
                     thumbnail: t.album?.cover || null,
                 }));
-                finalTracks = [...sTracks];
             }
 
             // --- YOUTUBE MUSIC PARSING ---
             if (ytRes.status === "fulfilled") {
                 const data = await ytRes.value.json();
                 const sections = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
-                const ytTracks = [];
 
                 for (const section of sections) {
-                    // Handle Hero/Top result card
-                    if (section.musicCardShelfRenderer) {
-                        const card = section.musicCardShelfRenderer;
+                    // 1. Handle Tracks (Shelf or Card)
+                    const shelf = section.musicShelfRenderer;
+                    const card = section.musicCardShelfRenderer;
+
+                    if (card) {
                         try {
                             const title = card.title.runs[0].text;
                             const videoId = card.title.runs[0].navigationEndpoint.watchEndpoint.videoId;
                             const artist = card.subtitle.runs[2]?.text || "Unknown";
                             const durationStr = card.subtitle.runs[card.subtitle.runs.length - 1]?.text;
 
-                            ytTracks.push({
+                            finalTracks.push({
                                 id: videoId,
                                 title,
                                 duration: parseTime(durationStr),
                                 audioQuality: "Standard",
-                                source: "youtube",
+                                source: "youtube" as TrackSource,
                                 thumbnail: card.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[1]?.url,
                                 artists: [{ id: artist, name: artist }],
                                 album: { id: "yt-album", title: "YouTube Music", cover: null }
@@ -235,55 +244,71 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
                         } catch { }
                     }
 
-                    // Handle List results
-                    if (section.musicShelfRenderer) {
-                        for (const item of section.musicShelfRenderer.contents || []) {
+                    if (shelf) {
+                        const shelfTitle = shelf.title?.runs?.[0]?.text?.toLowerCase() || "";
+
+                        for (const item of shelf.contents || []) {
                             const r = item.musicResponsiveListItemRenderer;
-                            if (!r || !r.playlistItemData) continue;
+                            if (!r) continue;
 
-                            try {
+                            // Identify item type via PageType or Shelf Title
+                            const pageType = r.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType;
+
+                            // PARSE ARTISTS
+                            if (pageType === "MUSIC_PAGE_TYPE_ARTIST" || shelfTitle.includes("artist")) {
+                                finalArtists.push({
+                                    id: r.navigationEndpoint.browseEndpoint.browseId,
+                                    name: r.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text,
+                                    picture: r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || null,
+                                    source: "youtube" as TrackSource
+                                });
+                            }
+                            // PARSE ALBUMS
+                            else if (pageType === "MUSIC_PAGE_TYPE_ALBUM" || shelfTitle.includes("album")) {
+                                finalAlbums.push({
+                                    id: r.navigationEndpoint.browseEndpoint.browseId,
+                                    title: r.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text,
+                                    cover: r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || null,
+                                    source: "youtube" as TrackSource
+                                });
+                            }
+                            // PARSE SONGS
+                            else if (r.playlistItemData) {
                                 const title = r.flexColumns[0].musicResponsiveListItemFlexColumnRenderer.text.runs[0].text;
-                                const videoId = r.playlistItemData.videoId;
-
-                                // Extract artist and duration from the second column
                                 const subRuns = r.flexColumns[1].musicResponsiveListItemFlexColumnRenderer.text.runs;
                                 const artist = subRuns[0]?.text || "Unknown";
                                 const durationStr = subRuns[subRuns.length - 1]?.text;
 
-                                ytTracks.push({
-                                    id: videoId,
+                                finalTracks.push({
+                                    id: r.playlistItemData.videoId,
                                     title,
                                     duration: parseTime(durationStr),
                                     audioQuality: "Standard",
-                                    source: "youtube",
+                                    source: "youtube" as TrackSource,
                                     thumbnail: r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url,
                                     artists: [{ id: artist, name: artist }],
                                     album: { id: "yt-album", title: "YouTube Music", cover: null }
                                 });
-                            } catch { }
+                            }
                         }
                     }
                 }
-                finalTracks = [...finalTracks, ...ytTracks];
             }
 
-            // --- SCORING & DEDUPLICATION ---
+            // --- SCORING & DEDUPLICATION (Songs) ---
             const q = query.toLowerCase().trim();
-            const calculateScore = (track) => {
+            const calculateScore = (track: Track) => {
                 const title = track.title.toLowerCase();
-                const artist = track.artists?.[0]?.name.toLowerCase() || "";
                 let score = 0;
                 if (title === q) score += 10000;
                 else if (title.startsWith(q)) score += 8000;
-                else if (title.includes(q)) score += 5000;
-                if (artist === q) score += 2000;
                 if (track.source === "streamex") score += 500;
                 return score;
             };
 
             finalTracks.sort((a, b) => calculateScore(b) - calculateScore(a));
 
-            const seen = new Set();
+            const seen = new Set<string>();
             const filteredTracks = finalTracks.filter((track) => {
                 const key = `${normalize(track.title)}-${normalize(track.artists?.[0]?.name || "")}`;
                 if (track.source === "streamex") {
@@ -293,8 +318,11 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
                 return !seen.has(key);
             });
 
+            // Set all results into state
             set({
                 tracks: filteredTracks,
+                artists: finalArtists,
+                albums: finalAlbums,
                 loading: false,
                 trackOffset: LIMIT,
                 hasMoreTracks: filteredTracks.length >= LIMIT,
