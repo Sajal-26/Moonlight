@@ -1,1 +1,5 @@
+fastapi
+uvicorn
+yt-dlpfastapi
+uvicorn
 yt-dlp

@@ -913,6 +913,7 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
                     }
 
                     const data = await response.json();
+                    console.log(" [5] yt-dlp response:", data);
 
                     if (!data.url) {
                         throw new Error("No stream URL returned from backend");
