@@ -18,7 +18,13 @@ def extract(video_id: str):
         "no_warnings": True,
         "noplaylist": True,
         "nocheckcertificate": True,
-        "user_agent": "Mozilla/5.0",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36",
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web", "ios", "tv"],
+                "skip": ["webpage", "mweb"]
+            }
+        }
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

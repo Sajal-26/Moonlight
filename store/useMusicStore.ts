@@ -904,7 +904,7 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 
                 try {
                     // 1. Fetch from your Python/yt-dlp Vercel endpoint
-                    const response = await fetch(`https://moonlight-lac.vercel.app/api/stream?id=${track.id}`);
+                    const response = await fetch(`https://moonlight-y8wr.onrender.com/stream?video_id=${track.id}`);
 
                     const contentType = response.headers.get("content-type");
                     if (!response.ok || !contentType?.includes("application/json")) {
